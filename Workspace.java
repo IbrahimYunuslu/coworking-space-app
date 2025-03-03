@@ -1,4 +1,4 @@
-class Workspace {
+class Workspace implements java.io.Serializable {
     private int id;
     private String type;
     private double price;

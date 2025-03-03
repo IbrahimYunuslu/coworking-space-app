@@ -1,4 +1,4 @@
-class Reservation {
+class Reservation implements java.io.Serializable {
     private int reservationId;
     private int workspaceId;
     private String customerName;
