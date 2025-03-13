@@ -1,5 +1,7 @@
 import java.util.List;
 import java.util.Scanner;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class UserManager {
 
@@ -50,11 +52,9 @@ public class UserManager {
         if (workspaces.isEmpty()) {
             System.out.println("No workspaces available.");
         } else {
-            for (Workspace workspace : workspaces) {
-                if (workspace.isAvailable()) {
-                    System.out.println(workspace);
-                }
-            }
+            workspaces.stream()
+                      .filter(Workspace::isAvailable)
+                      .forEach(System.out::println);
         }
     }
 
@@ -72,9 +72,17 @@ public class UserManager {
             System.out.print("Enter end time (HH:mm): ");
             String endTime = scanner.nextLine();
 
-            Reservation reservation = new Reservation(reservationCounter++, workspaceId, name, date, startTime, endTime);
-            reservations.add(reservation);
-            System.out.println("Reservation made successfully!");
+            Optional<Workspace> workspaceOpt = workspaces.stream()
+                                                        .filter(w -> w.getId() == workspaceId)
+                                                        .findFirst();
+
+            if (workspaceOpt.isPresent() && workspaceOpt.get().isAvailable()) {
+                Reservation reservation = new Reservation(reservationCounter++, workspaceId, name, date, startTime, endTime);
+                reservations.add(reservation);
+                System.out.println("Reservation made successfully!");
+            } else {
+                throw new CustomException("Workspace not available or not found.");
+            }
         } catch (Exception e) {
             System.out.println("Error making reservation: " + e.getMessage());
         }
@@ -84,15 +92,15 @@ public class UserManager {
         try {
             System.out.print("Enter your name: ");
             String name = scanner.nextLine();
-            boolean found = false;
-            for (Reservation reservation : reservations) {
-                if (reservation.getCustomerName().equals(name)) {
-                    System.out.println(reservation);
-                    found = true;
-                }
-            }
-            if (!found) {
+
+            List<Reservation> userReservations = reservations.stream()
+                                                            .filter(r -> r.getCustomerName().equals(name))
+                                                            .collect(Collectors.toList());
+
+            if (userReservations.isEmpty()) {
                 throw new CustomException("No reservations found for " + name);
+            } else {
+                userReservations.forEach(System.out::println);
             }
         } catch (CustomException e) {
             System.out.println(e.getMessage());
@@ -106,7 +114,9 @@ public class UserManager {
             System.out.print("Enter reservation ID to cancel: ");
             int id = scanner.nextInt();
             scanner.nextLine();
+
             boolean removed = reservations.removeIf(reservation -> reservation.getReservationId() == id);
+
             if (removed) {
                 System.out.println("Reservation cancelled successfully!");
             } else {

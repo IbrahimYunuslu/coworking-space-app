@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.Scanner;
+import java.util.Optional;
 
 public class AdminManager {
 
@@ -50,8 +51,19 @@ public class AdminManager {
             System.out.print("Enter price: ");
             double price = scanner.nextDouble();
             scanner.nextLine();
-            workspaces.add(new Workspace(id, type, price, true));
-            System.out.println("Workspace added successfully!");
+
+            Optional<Workspace> existingWorkspace = workspaces.stream()
+                                                             .filter(w -> w.getId() == id)
+                                                             .findFirst();
+
+            if (existingWorkspace.isPresent()) {
+                throw new CustomException("Workspace with ID " + id + " already exists.");
+            } else {
+                workspaces.add(new Workspace(id, type, price, true));
+                System.out.println("Workspace added successfully!");
+            }
+        } catch (CustomException e) {
+            System.out.println(e.getMessage());
         } catch (Exception e) {
             System.out.println("Error adding workspace: " + e.getMessage());
         }
@@ -62,7 +74,9 @@ public class AdminManager {
             System.out.print("Enter workspace ID to remove: ");
             int id = scanner.nextInt();
             scanner.nextLine();
+
             boolean removed = workspaces.removeIf(workspace -> workspace.getId() == id);
+
             if (removed) {
                 System.out.println("Workspace removed successfully!");
             } else {
@@ -79,9 +93,7 @@ public class AdminManager {
         if (reservations.isEmpty()) {
             System.out.println("No reservations found.");
         } else {
-            for (Reservation reservation : reservations) {
-                System.out.println(reservation);
-            }
+            reservations.forEach(System.out::println);
         }
     }
 }
