@@ -74,15 +74,24 @@ public class UserManager {
 
             Optional<Workspace> workspaceOpt = workspaces.stream()
                                                         .filter(w -> w.getId() == workspaceId)
-                                                        .findFirst();
+                                                        .findAny();
 
-            if (workspaceOpt.isPresent() && workspaceOpt.get().isAvailable()) {
-                Reservation reservation = new Reservation(reservationCounter++, workspaceId, name, date, startTime, endTime);
-                reservations.add(reservation);
-                System.out.println("Reservation made successfully!");
-            } else {
-                throw new CustomException("Workspace not available or not found.");
-            }
+            workspaceOpt.ifPresentOrElse(
+                workspace -> {
+                    if (workspace.isAvailable()) {
+                        Reservation reservation = new Reservation(reservationCounter++, workspaceId, name, date, startTime, endTime);
+                        reservations.add(reservation);
+                        System.out.println("Reservation made successfully!");
+                    } else {
+                        throw new CustomException("Workspace with ID " + workspaceId + " is not available.");
+                    }
+                },
+                () -> {
+                    throw new CustomException("Workspace with ID " + workspaceId + " not found.");
+                }
+            );
+        } catch (CustomException e) {
+            System.out.println(e.getMessage());
         } catch (Exception e) {
             System.out.println("Error making reservation: " + e.getMessage());
         }
@@ -95,7 +104,7 @@ public class UserManager {
 
             List<Reservation> userReservations = reservations.stream()
                                                             .filter(r -> r.getCustomerName().equals(name))
-                                                            .collect(Collectors.toList());
+                                                            .toList();
 
             if (userReservations.isEmpty()) {
                 throw new CustomException("No reservations found for " + name);
