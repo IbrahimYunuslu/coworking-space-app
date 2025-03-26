@@ -4,8 +4,16 @@ import java.util.List;
 
 public class DataStorage {
 
-    private static final String WORKSPACE_FILE = "workspaces.dat";
-    private static final String STATE_FILE = "state.dat";
+    private static String WORKSPACE_FILE = "data/workspaces.dat";
+    private static String STATE_FILE = "data/state.dat";
+
+    public static void setWorkspaceFileForTesting(String path) {
+        WORKSPACE_FILE = path;
+    }
+
+    public static void setStateFileForTesting(String path) {
+        STATE_FILE = path;
+    }
 
     public static void saveWorkspaces(List<Workspace> workspaces) {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(WORKSPACE_FILE))) {

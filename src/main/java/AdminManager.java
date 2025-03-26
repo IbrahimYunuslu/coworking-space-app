@@ -41,7 +41,7 @@ public class AdminManager {
         }
     }
 
-    private void addWorkspace(Scanner scanner) {
+    public void addWorkspace(Scanner scanner) {
         try {
             System.out.print("Enter workspace ID: ");
             int id = scanner.nextInt();
@@ -53,8 +53,8 @@ public class AdminManager {
             scanner.nextLine();
 
             Optional<Workspace> existingWorkspace = workspaces.stream()
-                                                             .filter(w -> w.getId() == id)
-                                                             .findFirst();
+                    .filter(w -> w.getId() == id)
+                    .findFirst();
 
             if (existingWorkspace.isPresent()) {
                 throw new CustomException("Workspace with ID " + id + " already exists.");
@@ -69,7 +69,7 @@ public class AdminManager {
         }
     }
 
-    private void removeWorkspace(Scanner scanner) {
+    public void removeWorkspace(Scanner scanner) {
         try {
             System.out.print("Enter workspace ID to remove: ");
             int id = scanner.nextInt();

@@ -18,4 +18,17 @@ class WorkspaceTest {
         workspace.setAvailable(false);
         assertFalse(workspace.isAvailable());
     }
+
+    // Edge cases
+    @Test
+    void createWorkspace_withNegativePrice_shouldAccept() {
+        Workspace workspace = new Workspace(3, "Private Office", -75.0, false);
+        assertEquals(-75.0, workspace.getPrice());
+    }
+
+    @Test
+    void createWorkspace_withEmptyType_shouldAccept() {
+        Workspace workspace = new Workspace(4, "", 200.0, true);
+        assertEquals("", workspace.getType());
+    }
 }
