@@ -1,11 +1,8 @@
-import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 public class UserManager {
-
     private List<Workspace> workspaces;
     private List<Reservation> reservations;
     private int reservationCounter;
@@ -28,18 +25,14 @@ public class UserManager {
 
             try {
                 int choice = scanner.nextInt();
-                scanner.nextLine(); // consume newline
+                scanner.nextLine();
 
                 switch (choice) {
                     case 1:
                         browseAvailableSpaces();
                         break;
                     case 2:
-                        try {
-                            makeReservation(scanner);
-                        } catch (CustomException e) {
-                            System.out.println("Error: " + e.getMessage());
-                        }
+                        makeReservation(scanner);
                         break;
                     case 3:
                         viewMyReservations(scanner);
@@ -52,97 +45,82 @@ public class UserManager {
                     default:
                         System.out.println("Invalid option. Please try again.");
                 }
-            } catch (InputMismatchException e) {
-                System.out.println("Please enter a valid number.");
-                scanner.nextLine(); // clear invalid input
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+                scanner.nextLine();
             }
         }
     }
 
     private void browseAvailableSpaces() {
-        if (workspaces.isEmpty()) {
-            System.out.println("No workspaces available.");
-        } else {
-            workspaces.stream()
-                    .filter(Workspace::isAvailable)
-                    .forEach(System.out::println);
-        }
+        workspaces = DataStorage.loadWorkspaces();
+        workspaces.stream()
+                .filter(Workspace::isAvailable)
+                .forEach(System.out::println);
     }
 
-    public void makeReservation(Scanner scanner) throws CustomException {
+    void makeReservation(Scanner scanner) {
         try {
             System.out.print("Enter workspace ID: ");
             int workspaceId = scanner.nextInt();
             scanner.nextLine();
+
+            Optional<Workspace> workspaceOpt = workspaces.stream()
+                    .filter(w -> w.getId() == workspaceId)
+                    .findFirst();
+
+            if (workspaceOpt.isEmpty()) {
+                System.out.println("Workspace not found!");
+                return;
+            }
+
+            Workspace workspace = workspaceOpt.get();
+            if (!workspace.isAvailable()) {
+                System.out.println("Workspace is not available!");
+                return;
+            }
+
             System.out.print("Enter your name: ");
             String name = scanner.nextLine();
-            System.out.print("Enter date (yyyy-MM-dd): ");
+            System.out.print("Enter date (yyyy-mm-dd): ");
             String date = scanner.nextLine();
             System.out.print("Enter start time (HH:mm): ");
             String startTime = scanner.nextLine();
             System.out.print("Enter end time (HH:mm): ");
             String endTime = scanner.nextLine();
 
-            Optional<Workspace> workspaceOpt = workspaces.stream()
-                    .filter(w -> w.getId() == workspaceId)
-                    .findAny();
+            Reservation reservation = new Reservation(
+                    reservationCounter++,
+                    workspaceId,
+                    name,
+                    date,
+                    startTime,
+                    endTime);
 
-            if (workspaceOpt.isPresent()) {
-                Workspace workspace = workspaceOpt.get();
-                if (workspace.isAvailable()) {
-                    Reservation reservation = new Reservation(reservationCounter++, workspaceId, name, date, startTime,
-                            endTime);
-                    reservations.add(reservation);
-                    System.out.println("Reservation made successfully!");
-                } else {
-                    throw new CustomException("Workspace with ID " + workspaceId + " is not available.");
-                }
-            } else {
-                throw new CustomException("Workspace with ID " + workspaceId + " not found.");
-            }
-        } catch (InputMismatchException e) {
-            throw new CustomException("Invalid input format");
+            DataStorage.saveReservation(reservation);
+            System.out.println("Reservation created successfully!");
+
+        } catch (Exception e) {
+            System.out.println("Error making reservation: " + e.getMessage());
         }
     }
 
-    public void viewMyReservations(Scanner scanner) {
-        try {
-            System.out.print("Enter your name: ");
-            String name = scanner.nextLine();
+    private void viewMyReservations(Scanner scanner) {
+        System.out.print("Enter your name: ");
+        String name = scanner.nextLine();
 
-            List<Reservation> userReservations = reservations.stream()
-                    .filter(r -> r.getCustomerName().equals(name))
-                    .toList();
-
-            if (userReservations.isEmpty()) {
-                throw new CustomException("No reservations found for " + name);
-            } else {
-                userReservations.forEach(System.out::println);
-            }
-        } catch (CustomException e) {
-            System.out.println(e.getMessage());
-        } catch (Exception e) {
-            System.out.println("Error viewing reservations: " + e.getMessage());
-        }
+        reservations = DataStorage.loadState().getReservations();
+        reservations.stream()
+                .filter(r -> r.getCustomerName().equalsIgnoreCase(name))
+                .forEach(System.out::println);
     }
 
     private void cancelReservation(Scanner scanner) {
-        try {
-            System.out.print("Enter reservation ID to cancel: ");
-            int id = scanner.nextInt();
-            scanner.nextLine();
+        System.out.print("Enter reservation ID to cancel: ");
+        int reservationId = scanner.nextInt();
+        scanner.nextLine();
 
-            boolean removed = reservations.removeIf(reservation -> reservation.getReservationId() == id);
-
-            if (removed) {
-                System.out.println("Reservation cancelled successfully!");
-            } else {
-                throw new CustomException("Reservation not found.");
-            }
-        } catch (CustomException e) {
-            System.out.println(e.getMessage());
-        } catch (Exception e) {
-            System.out.println("Error cancelling reservation: " + e.getMessage());
-        }
+        DataStorage.cancelReservation(reservationId);
+        System.out.println("Reservation cancelled successfully!");
     }
 }

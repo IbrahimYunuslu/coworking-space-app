@@ -1,12 +1,12 @@
-import org.junit.jupiter.api.*;
-import java.io.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-class UserManagerTest {
+public class UserManagerTest {
+    private UserManager userManager;
     private List<Workspace> workspaces;
     private List<Reservation> reservations;
-    private UserManager userManager;
 
     @BeforeEach
     void setUp() {
@@ -14,36 +14,15 @@ class UserManagerTest {
         workspaces.add(new Workspace(1, "Desk", 50.0, true));
         reservations = new ArrayList<>();
         userManager = new UserManager(workspaces, reservations, 1);
+        DatabaseManager.initializeDatabase();
+        WorkspaceDAO.addWorkspace(new Workspace(1, "Test Desk", 50.0, true));
     }
 
     @Test
-    void makeReservation_whenWorkspaceNotExists_shouldThrowException() {
-        String input = "999\nJohn\n2023-10-01\n09:00\n12:00";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
-
-        assertThrows(CustomException.class, () -> {
-            userManager.makeReservation(new Scanner(System.in));
-        });
-    }
-
-    @Test
-    void makeReservation_whenWorkspaceUnavailable_shouldThrowException() {
-        workspaces.get(0).setAvailable(false);
-        String input = "1\nJohn\n2023-10-01\n09:00\n12:00";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
-
-        assertThrows(CustomException.class, () -> {
-            userManager.makeReservation(new Scanner(System.in));
-        });
-    }
-
-    @Test
-    void viewMyReservations_whenNoReservations_shouldThrowException() {
-        String input = "NonExistentUser";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
-
-        assertThrows(CustomException.class, () -> {
-            userManager.viewMyReservations(new Scanner(System.in));
-        });
+    void makeReservation_shouldCreateNewReservation() {
+        int initialCount = ReservationDAO.getAllReservations().size();
+        Scanner scanner = new Scanner("1\nTest User\n2023-12-25\n09:00\n11:00");
+        userManager.makeReservation(scanner);
+        assertEquals(initialCount + 1, ReservationDAO.getAllReservations().size());
     }
 }
