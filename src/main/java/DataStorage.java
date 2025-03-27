@@ -1,29 +1,67 @@
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
 import java.util.List;
 
 public class DataStorage {
     public static List<Workspace> loadWorkspaces() {
-        return WorkspaceDAO.getAllWorkspaces();
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            TypedQuery<Workspace> query = em.createQuery("SELECT w FROM Workspace w", Workspace.class);
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
     }
 
     public static void saveWorkspace(Workspace workspace) {
-        WorkspaceDAO.addWorkspace(workspace);
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            if (workspace.getId() == 0) {
+                em.persist(workspace);
+            } else {
+                em.merge(workspace);
+            }
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
     }
 
-    public static State loadState() {
-        List<Reservation> reservations = ReservationDAO.getAllReservations();
-        int counter = getNextReservationId();
-        return new State(reservations, counter);
+    public static List<Reservation> getAllReservations() {
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            TypedQuery<Reservation> query = em.createQuery("SELECT r FROM Reservation r", Reservation.class);
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
     }
 
     public static void saveReservation(Reservation reservation) {
-        ReservationDAO.addReservation(reservation);
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.persist(reservation);
+            reservation.getWorkspace().setAvailable(false);
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
     }
 
     public static void cancelReservation(int reservationId) {
-        ReservationDAO.cancelReservation(reservationId);
-    }
-
-    private static int getNextReservationId() {
-        return 1;
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            Reservation reservation = em.find(Reservation.class, reservationId);
+            if (reservation != null) {
+                reservation.getWorkspace().setAvailable(true);
+                em.remove(reservation);
+            }
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
     }
 }

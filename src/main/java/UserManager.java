@@ -1,5 +1,10 @@
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Scanner;
+
+import javax.persistence.EntityManager;
+
 import java.util.Optional;
 
 public class UserManager {
@@ -7,10 +12,9 @@ public class UserManager {
     private List<Reservation> reservations;
     private int reservationCounter;
 
-    public UserManager(List<Workspace> workspaces, List<Reservation> reservations, int reservationCounter) {
-        this.workspaces = workspaces;
-        this.reservations = reservations;
-        this.reservationCounter = reservationCounter;
+    public UserManager() {
+        this.workspaces = DataStorage.loadWorkspaces();
+        this.reservations = DataStorage.getAllReservations();
     }
 
     public void userMenu(Scanner scanner) {
@@ -65,16 +69,16 @@ public class UserManager {
             int workspaceId = scanner.nextInt();
             scanner.nextLine();
 
-            Optional<Workspace> workspaceOpt = workspaces.stream()
+            Workspace workspace = workspaces.stream()
                     .filter(w -> w.getId() == workspaceId)
-                    .findFirst();
+                    .findFirst()
+                    .orElse(null);
 
-            if (workspaceOpt.isEmpty()) {
+            if (workspace == null) {
                 System.out.println("Workspace not found!");
                 return;
             }
 
-            Workspace workspace = workspaceOpt.get();
             if (!workspace.isAvailable()) {
                 System.out.println("Workspace is not available!");
                 return;
@@ -83,22 +87,29 @@ public class UserManager {
             System.out.print("Enter your name: ");
             String name = scanner.nextLine();
             System.out.print("Enter date (yyyy-mm-dd): ");
-            String date = scanner.nextLine();
+            LocalDate date = LocalDate.parse(scanner.nextLine());
             System.out.print("Enter start time (HH:mm): ");
-            String startTime = scanner.nextLine();
+            LocalTime startTime = LocalTime.parse(scanner.nextLine());
             System.out.print("Enter end time (HH:mm): ");
-            String endTime = scanner.nextLine();
+            LocalTime endTime = LocalTime.parse(scanner.nextLine());
 
-            Reservation reservation = new Reservation(
-                    reservationCounter++,
-                    workspaceId,
-                    name,
-                    date,
-                    startTime,
-                    endTime);
+            Reservation reservation = new Reservation();
+            reservation.setWorkspace(workspace);
+            reservation.setCustomerName(name);
+            reservation.setDate(date);
+            reservation.setStartTime(startTime);
+            reservation.setEndTime(endTime);
 
-            DataStorage.saveReservation(reservation);
-            System.out.println("Reservation created successfully!");
+            EntityManager em = JPAUtil.getEntityManager();
+            try {
+                em.getTransaction().begin();
+                em.persist(reservation);
+                workspace.setAvailable(false);
+                em.getTransaction().commit();
+                System.out.println("Reservation created successfully!");
+            } finally {
+                em.close();
+            }
 
         } catch (Exception e) {
             System.out.println("Error making reservation: " + e.getMessage());
@@ -109,10 +120,21 @@ public class UserManager {
         System.out.print("Enter your name: ");
         String name = scanner.nextLine();
 
-        reservations = DataStorage.loadState().getReservations();
-        reservations.stream()
-                .filter(r -> r.getCustomerName().equalsIgnoreCase(name))
-                .forEach(System.out::println);
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            List<Reservation> userReservations = em.createQuery(
+                    "SELECT r FROM Reservation r WHERE r.customerName = :name", Reservation.class)
+                    .setParameter("name", name)
+                    .getResultList();
+
+            if (userReservations.isEmpty()) {
+                System.out.println("No reservations found for " + name);
+            } else {
+                userReservations.forEach(System.out::println);
+            }
+        } finally {
+            em.close();
+        }
     }
 
     private void cancelReservation(Scanner scanner) {

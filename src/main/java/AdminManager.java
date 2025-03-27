@@ -1,14 +1,17 @@
 import java.util.List;
 import java.util.Scanner;
+
+import javax.persistence.EntityManager;
+
 import java.util.Optional;
 
 public class AdminManager {
     private List<Workspace> workspaces;
     private List<Reservation> reservations;
 
-    public AdminManager(List<Workspace> workspaces, List<Reservation> reservations) {
-        this.workspaces = workspaces;
-        this.reservations = reservations;
+    public AdminManager() {
+        this.workspaces = DataStorage.loadWorkspaces();
+        this.reservations = DataStorage.getAllReservations();
     }
 
     public void adminMenu(Scanner scanner) {
@@ -59,7 +62,7 @@ public class AdminManager {
 
             Workspace workspace = new Workspace(id, type, price, true);
             DataStorage.saveWorkspace(workspace);
-            workspaces = DataStorage.loadWorkspaces();
+            workspaces = DataStorage.loadWorkspaces(); // Refresh list
             System.out.println("Workspace added successfully!");
         } catch (Exception e) {
             System.out.println("Error adding workspace: " + e.getMessage());
@@ -78,18 +81,25 @@ public class AdminManager {
 
             if (workspaceOpt.isPresent()) {
                 boolean hasReservations = reservations.stream()
-                        .anyMatch(r -> r.getWorkspaceId() == id);
+                        .anyMatch(r -> r.getWorkspace().getId() == id);
 
                 if (hasReservations) {
                     System.out.println("Cannot remove workspace - it has active reservations!");
                     return;
                 }
 
-                if (WorkspaceDAO.deleteWorkspace(id)) {
-                    workspaces = DataStorage.loadWorkspaces();
-                    System.out.println("Workspace removed successfully!");
-                } else {
-                    System.out.println("Failed to remove workspace!");
+                EntityManager em = JPAUtil.getEntityManager();
+                try {
+                    em.getTransaction().begin();
+                    Workspace workspace = em.find(Workspace.class, id);
+                    if (workspace != null) {
+                        em.remove(workspace);
+                        workspaces = DataStorage.loadWorkspaces();
+                        System.out.println("Workspace removed successfully!");
+                    }
+                    em.getTransaction().commit();
+                } finally {
+                    em.close();
                 }
             } else {
                 System.out.println("Workspace not found!");
@@ -100,7 +110,7 @@ public class AdminManager {
     }
 
     private void viewAllReservations() {
-        reservations = DataStorage.loadState().getReservations();
+        reservations = DataStorage.getAllReservations();
         if (reservations.isEmpty()) {
             System.out.println("No reservations found.");
         } else {
