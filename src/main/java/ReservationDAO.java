@@ -27,46 +27,97 @@ public class ReservationDAO {
     }
 
     public static void addReservation(Reservation reservation) {
-        String sql = "INSERT INTO reservations (workspace_id, customer_name, date, start_time, end_time) " +
-                "VALUES (?, ?, ?, ?, ?)";
+        Connection conn = null;
+        try {
+            conn = DatabaseManager.getConnection();
+            conn.setAutoCommit(false); // Start transaction
 
-        try (Connection conn = DatabaseManager.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            // 1. Insert reservation
+            String sql = "INSERT INTO reservations (workspace_id, customer_name, date, start_time, end_time) " +
+                    "VALUES (?, ?, ?, ?, ?)";
 
-            pstmt.setInt(1, reservation.getWorkspaceId());
-            pstmt.setString(2, reservation.getCustomerName());
-            pstmt.setDate(3, Date.valueOf(reservation.getDate()));
-            pstmt.setTime(4, Time.valueOf(reservation.getStartTime() + ":00"));
-            pstmt.setTime(5, Time.valueOf(reservation.getEndTime() + ":00"));
-            pstmt.executeUpdate();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setInt(1, reservation.getWorkspaceId());
+                pstmt.setString(2, reservation.getCustomerName());
+                pstmt.setDate(3, Date.valueOf(reservation.getDate()));
+                pstmt.setTime(4, Time.valueOf(reservation.getStartTime() + ":00"));
+                pstmt.setTime(5, Time.valueOf(reservation.getEndTime() + ":00"));
+                pstmt.executeUpdate();
+            }
 
-            WorkspaceDAO.updateAvailability(reservation.getWorkspaceId(), false);
+            // 2. Update workspace availability (using the transaction-aware version)
+            WorkspaceDAO.updateAvailability(conn, reservation.getWorkspaceId(), false);
+
+            conn.commit(); // Commit transaction if both operations succeed
+            System.out.println("Reservation added successfully!");
         } catch (SQLException e) {
+            try {
+                if (conn != null)
+                    conn.rollback(); // Rollback if any operation fails
+            } catch (SQLException ex) {
+                System.err.println("Error during rollback: " + ex.getMessage());
+            }
             System.err.println("Error adding reservation: " + e.getMessage());
+            throw new RuntimeException("Failed to add reservation", e);
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true); // Reset auto-commit mode
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                System.err.println("Error closing connection: " + e.getMessage());
+            }
         }
     }
 
     public static void cancelReservation(int reservationId) {
-        String getWorkspaceId = "SELECT workspace_id FROM reservations WHERE reservation_id = ?";
-        String deleteSql = "DELETE FROM reservations WHERE reservation_id = ?";
+        Connection conn = null;
+        try {
+            conn = DatabaseManager.getConnection();
+            conn.setAutoCommit(false); // Start transaction
 
-        try (Connection conn = DatabaseManager.getConnection();
-                PreparedStatement getIdStmt = conn.prepareStatement(getWorkspaceId);
-                PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+            String getWorkspaceId = "SELECT workspace_id FROM reservations WHERE reservation_id = ? FOR UPDATE";
+            String deleteSql = "DELETE FROM reservations WHERE reservation_id = ?";
 
-            getIdStmt.setInt(1, reservationId);
-            ResultSet rs = getIdStmt.executeQuery();
+            try (PreparedStatement getIdStmt = conn.prepareStatement(getWorkspaceId);
+                    PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
 
-            if (rs.next()) {
-                int workspaceId = rs.getInt("workspace_id");
+                getIdStmt.setInt(1, reservationId);
+                ResultSet rs = getIdStmt.executeQuery();
 
-                deleteStmt.setInt(1, reservationId);
-                deleteStmt.executeUpdate();
+                if (rs.next()) {
+                    int workspaceId = rs.getInt("workspace_id");
 
-                WorkspaceDAO.updateAvailability(workspaceId, true);
+                    deleteStmt.setInt(1, reservationId);
+                    deleteStmt.executeUpdate();
+
+                    WorkspaceDAO.updateAvailability(conn, workspaceId, true);
+
+                    conn.commit();
+                } else {
+                    conn.rollback();
+                    throw new SQLException("Reservation not found");
+                }
             }
         } catch (SQLException e) {
+            try {
+                if (conn != null)
+                    conn.rollback();
+            } catch (SQLException ex) {
+                System.err.println("Error during rollback: " + ex.getMessage());
+            }
             System.err.println("Error canceling reservation: " + e.getMessage());
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true); // Reset auto-commit
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                System.err.println("Error closing connection: " + e.getMessage());
+            }
         }
     }
+
 }

@@ -23,7 +23,7 @@ public class DatabaseManager {
         String createReservations = """
                 CREATE TABLE IF NOT EXISTS reservations (
                     reservation_id SERIAL PRIMARY KEY,
-                    workspace_id INTEGER REFERENCES workspaces(id),
+                    workspace_id INTEGER NOT NULL REFERENCES workspaces(id),
                     customer_name VARCHAR(100) NOT NULL,
                     date DATE NOT NULL,
                     start_time TIME NOT NULL,

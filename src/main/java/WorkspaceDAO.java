@@ -39,17 +39,12 @@ public class WorkspaceDAO {
         }
     }
 
-    public static void updateAvailability(int id, boolean available) {
+    public static void updateAvailability(Connection conn, int id, boolean available) throws SQLException {
         String sql = "UPDATE workspaces SET available = ? WHERE id = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setBoolean(1, available);
             pstmt.setInt(2, id);
             pstmt.executeUpdate();
-        } catch (SQLException e) {
-            System.err.println("Error updating workspace: " + e.getMessage());
         }
     }
 
