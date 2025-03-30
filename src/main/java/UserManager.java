@@ -2,15 +2,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Scanner;
-
 import javax.persistence.EntityManager;
-
-import java.util.Optional;
+import javax.persistence.EntityTransaction;
 
 public class UserManager {
     private List<Workspace> workspaces;
     private List<Reservation> reservations;
-    private int reservationCounter;
 
     public UserManager() {
         this.workspaces = DataStorage.loadWorkspaces();
@@ -64,24 +61,23 @@ public class UserManager {
     }
 
     void makeReservation(Scanner scanner) {
+        EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction transaction = em.getTransaction();
+
         try {
+            transaction.begin();
+
             System.out.print("Enter workspace ID: ");
             int workspaceId = scanner.nextInt();
             scanner.nextLine();
 
-            Workspace workspace = workspaces.stream()
-                    .filter(w -> w.getId() == workspaceId)
-                    .findFirst()
-                    .orElse(null);
-
+            Workspace workspace = em.find(Workspace.class, workspaceId);
             if (workspace == null) {
-                System.out.println("Workspace not found!");
-                return;
+                throw new CustomException("Workspace not found");
             }
 
             if (!workspace.isAvailable()) {
-                System.out.println("Workspace is not available!");
-                return;
+                throw new CustomException("Workspace is not available");
             }
 
             System.out.print("Enter your name: ");
@@ -100,19 +96,18 @@ public class UserManager {
             reservation.setStartTime(startTime);
             reservation.setEndTime(endTime);
 
-            EntityManager em = JPAUtil.getEntityManager();
-            try {
-                em.getTransaction().begin();
-                em.persist(reservation);
-                workspace.setAvailable(false);
-                em.getTransaction().commit();
-                System.out.println("Reservation created successfully!");
-            } finally {
-                em.close();
-            }
+            em.persist(reservation);
+            workspace.setAvailable(false);
 
+            transaction.commit();
+            System.out.println("Reservation created successfully!");
         } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
             System.out.println("Error making reservation: " + e.getMessage());
+        } finally {
+            em.close();
         }
     }
 
@@ -138,11 +133,31 @@ public class UserManager {
     }
 
     private void cancelReservation(Scanner scanner) {
-        System.out.print("Enter reservation ID to cancel: ");
-        int reservationId = scanner.nextInt();
-        scanner.nextLine();
+        EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction transaction = em.getTransaction();
 
-        DataStorage.cancelReservation(reservationId);
-        System.out.println("Reservation cancelled successfully!");
+        try {
+            System.out.print("Enter reservation ID to cancel: ");
+            int reservationId = scanner.nextInt();
+            scanner.nextLine();
+
+            transaction.begin();
+            Reservation reservation = em.find(Reservation.class, reservationId);
+            if (reservation != null) {
+                reservation.getWorkspace().setAvailable(true);
+                em.remove(reservation);
+                transaction.commit();
+                System.out.println("Reservation cancelled successfully!");
+            } else {
+                System.out.println("Reservation not found!");
+            }
+        } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            System.out.println("Error cancelling reservation: " + e.getMessage());
+        } finally {
+            em.close();
+        }
     }
 }

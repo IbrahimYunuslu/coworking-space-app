@@ -2,6 +2,7 @@ import java.util.List;
 import java.util.Scanner;
 
 import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
 
 import java.util.Optional;
 
@@ -50,22 +51,35 @@ public class AdminManager {
     }
 
     void addWorkspace(Scanner scanner) {
+        EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction transaction = em.getTransaction();
+
         try {
+            transaction.begin();
+
             System.out.print("Enter workspace ID: ");
             int id = scanner.nextInt();
             scanner.nextLine();
+
             System.out.print("Enter workspace type: ");
             String type = scanner.nextLine();
+
             System.out.print("Enter price: ");
             double price = scanner.nextDouble();
             scanner.nextLine();
 
             Workspace workspace = new Workspace(id, type, price, true);
-            DataStorage.saveWorkspace(workspace);
-            workspaces = DataStorage.loadWorkspaces(); // Refresh list
+            em.persist(workspace);
+
+            transaction.commit();
             System.out.println("Workspace added successfully!");
         } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
             System.out.println("Error adding workspace: " + e.getMessage());
+        } finally {
+            em.close();
         }
     }
 

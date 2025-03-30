@@ -1,13 +1,13 @@
 import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
+import javax.persistence.EntityTransaction;
 import java.util.List;
 
 public class DataStorage {
     public static List<Workspace> loadWorkspaces() {
         EntityManager em = JPAUtil.getEntityManager();
         try {
-            TypedQuery<Workspace> query = em.createQuery("SELECT w FROM Workspace w", Workspace.class);
-            return query.getResultList();
+            return em.createQuery("SELECT w FROM Workspace w", Workspace.class)
+                    .getResultList();
         } finally {
             em.close();
         }
@@ -15,14 +15,20 @@ public class DataStorage {
 
     public static void saveWorkspace(Workspace workspace) {
         EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction transaction = em.getTransaction();
         try {
-            em.getTransaction().begin();
+            transaction.begin();
             if (workspace.getId() == 0) {
                 em.persist(workspace);
             } else {
                 em.merge(workspace);
             }
-            em.getTransaction().commit();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            throw new CustomException("Failed to save workspace", e);
         } finally {
             em.close();
         }
@@ -31,8 +37,8 @@ public class DataStorage {
     public static List<Reservation> getAllReservations() {
         EntityManager em = JPAUtil.getEntityManager();
         try {
-            TypedQuery<Reservation> query = em.createQuery("SELECT r FROM Reservation r", Reservation.class);
-            return query.getResultList();
+            return em.createQuery("SELECT r FROM Reservation r", Reservation.class)
+                    .getResultList();
         } finally {
             em.close();
         }
@@ -40,11 +46,17 @@ public class DataStorage {
 
     public static void saveReservation(Reservation reservation) {
         EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction transaction = em.getTransaction();
         try {
-            em.getTransaction().begin();
+            transaction.begin();
             em.persist(reservation);
             reservation.getWorkspace().setAvailable(false);
-            em.getTransaction().commit();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            throw new CustomException("Failed to save reservation", e);
         } finally {
             em.close();
         }
@@ -52,14 +64,20 @@ public class DataStorage {
 
     public static void cancelReservation(int reservationId) {
         EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction transaction = em.getTransaction();
         try {
-            em.getTransaction().begin();
+            transaction.begin();
             Reservation reservation = em.find(Reservation.class, reservationId);
             if (reservation != null) {
                 reservation.getWorkspace().setAvailable(true);
                 em.remove(reservation);
             }
-            em.getTransaction().commit();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            throw new CustomException("Failed to cancel reservation", e);
         } finally {
             em.close();
         }
