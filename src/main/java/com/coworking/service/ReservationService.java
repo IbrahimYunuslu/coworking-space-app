@@ -7,10 +7,10 @@ import com.coworking.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 
 @Service
+@Transactional
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
@@ -23,7 +23,6 @@ public class ReservationService {
         this.workspaceRepository = workspaceRepository;
     }
 
-    @Transactional
     public Reservation createReservation(Reservation reservation) {
         Workspace workspace = reservation.getWorkspace();
         if (!workspace.isAvailable()) {
@@ -41,7 +40,6 @@ public class ReservationService {
         return reservationRepository.findByCustomerName(customerName);
     }
 
-    @Transactional
     public void cancelReservation(int reservationId) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));

@@ -4,7 +4,6 @@ import com.coworking.model.Workspace;
 import com.coworking.service.WorkspaceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController

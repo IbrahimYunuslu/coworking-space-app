@@ -18,11 +18,11 @@ public class Workspace {
     @OneToMany(mappedBy = "workspace", cascade = CascadeType.ALL)
     private List<Reservation> reservations = new ArrayList<>();
 
+    // Constructors, getters, setters
     public Workspace() {
     }
 
-    public Workspace(int id, String type, double price, boolean available) {
-        this.id = id;
+    public Workspace(String type, double price, boolean available) {
         this.type = type;
         this.price = price;
         this.available = available;
