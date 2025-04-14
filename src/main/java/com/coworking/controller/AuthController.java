@@ -1,6 +1,5 @@
 package com.coworking.controller;
 
-import org.springframework.security.core.userdetails.UserDetails;
 import com.coworking.dto.LoginRequest;
 import com.coworking.dto.LoginResponse;
 import com.coworking.entity.User;
@@ -12,12 +11,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import com.coworking.dto.LoginRequest;
-import com.coworking.dto.LoginResponse;
-import com.coworking.entity.User;
-import com.coworking.repository.UserRepository;
-import com.coworking.utils.JwtUtils;
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -26,8 +19,10 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
-            JwtUtils jwtUtils, PasswordEncoder passwordEncoder) {
+    public AuthController(AuthenticationManager authenticationManager,
+            UserRepository userRepository,
+            JwtUtils jwtUtils,
+            PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.jwtUtils = jwtUtils;
@@ -38,7 +33,7 @@ public class AuthController {
     public LoginResponse login(@RequestBody LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
-        String token = jwtUtils.generateToken((UserDetails) authentication.getPrincipal());
+        String token = jwtUtils.generateToken(authentication);
         return new LoginResponse(token);
     }
 
@@ -46,6 +41,6 @@ public class AuthController {
     public String register(@RequestBody User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
-        return "User registered!";
+        return "User registered successfully!";
     }
 }
