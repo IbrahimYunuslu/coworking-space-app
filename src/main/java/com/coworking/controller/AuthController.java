@@ -2,45 +2,44 @@ package com.coworking.controller;
 
 import com.coworking.dto.LoginRequest;
 import com.coworking.dto.LoginResponse;
-import com.coworking.entity.User;
-import com.coworking.repository.UserRepository;
 import com.coworking.utils.JwtUtils;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
     private final AuthenticationManager authenticationManager;
-    private final UserRepository userRepository;
     private final JwtUtils jwtUtils;
-    private final PasswordEncoder passwordEncoder;
+    private final UserDetailsService userDetailsService;
 
     public AuthController(AuthenticationManager authenticationManager,
-            UserRepository userRepository,
             JwtUtils jwtUtils,
-            PasswordEncoder passwordEncoder) {
+            UserDetailsService userDetailsService) {
         this.authenticationManager = authenticationManager;
-        this.userRepository = userRepository;
         this.jwtUtils = jwtUtils;
-        this.passwordEncoder = passwordEncoder;
+        this.userDetailsService = userDetailsService;
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody LoginRequest request) {
+    public LoginResponse login(@RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
-        String token = jwtUtils.generateToken(authentication);
-        return new LoginResponse(token);
-    }
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsername(),
+                        loginRequest.getPassword()));
 
-    @PostMapping("/register")
-    public String register(@RequestBody User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        userRepository.save(user);
-        return "User registered successfully!";
+        // Get UserDetails from the authentication object
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        String token = jwtUtils.generateToken(userDetails);
+        return new LoginResponse(token);
     }
 }
